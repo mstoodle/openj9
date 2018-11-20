@@ -292,8 +292,8 @@ extern _jitMonitorExit
 extern _jitMethodMonitorExit
 
 %ifdef TR_HOST_64BIT
-    entryFallback equ _jitMonitorEntry
-    methodEntryFallback equ _jitMethodMonitorEntry
+%define entryFallback _jitMonitorEntry
+%define methodEntryFallback _jitMethodMonitorEntry
 %else
     entryFallback:
         ; _jitMonitorEntry won't clean up the extra argument
