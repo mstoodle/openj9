@@ -130,7 +130,6 @@ set(REMOVED_OMR_FILES
 	${omr_SOURCE_DIR}/compiler/infra/OMRMonitor.cpp
 	${omr_SOURCE_DIR}/compiler/runtime/Trampoline.cpp
 	${omr_SOURCE_DIR}/compiler/runtime/Runtime.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/IlInjector.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRBytecodeBuilder.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRIlBuilder.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRIlValue.cpp
@@ -147,7 +146,6 @@ set(REMOVED_OMR_FILES
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRVirtualMachineRegisterInStruct.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRVirtualMachineState.cpp
 )
-
 
 get_target_property(compiler_defines j9vm_compiler_defines INTERFACE_COMPILE_DEFINITIONS)
 # Extra defines not provided by the create_omr_compiler_library call
