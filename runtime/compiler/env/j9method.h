@@ -496,6 +496,20 @@ private:
    int32_t                 _pendingPushSlots;
    };
 
+namespace TR
+{
+   class ResolvedMethod : public TR_ResolvedJ9Method
+      {
+      ResolvedMethod(TR_OpaqueMethodBlock * aMethod,
+                     TR_FrontEnd *fe,
+                     TR_Memory *trMemory,
+                     TR_ResolvedMethod * owningMethod = 0,
+                     uint32_t vTableSlot = 0)
+         : TR_ResolvedJ9Method(aMethod, fe, trMemory, owningMethod, vTableSlot)
+         { }
+      };
+}
+
 #if defined(J9VM_INTERP_AOT_COMPILE_SUPPORT)
 
 class TR_ResolvedRelocatableJ9Method : public TR_ResolvedJ9Method

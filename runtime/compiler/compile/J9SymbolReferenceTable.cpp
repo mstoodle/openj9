@@ -280,6 +280,13 @@ J9::SymbolReferenceTable::findOrCreateStaticMethodSymbol(TR::ResolvedMethodSymbo
    return findOrCreateMethodSymbol(owningMethodSymbol->getResolvedMethodIndex(), cpIndex, method, TR::MethodSymbol::Static, isUnresolvedInCP);
    }
 
+TR::SymbolReference *
+J9::SymbolReferenceTable::findOrCreateStaticMethodSymbol(
+   mcount_t owningMethodIndex, int32_t cpIndex, TR_ResolvedMethod * resolvedMethod)
+   {
+   bool isUnresolvedInCP;
+   return findOrCreateMethodSymbol(owningMethodIndex, cpIndex, resolvedMethod, TR::MethodSymbol::Static, isUnresolvedInCP);
+   }
 
 TR::SymbolReference *
 J9::SymbolReferenceTable::findOrCreateSpecialMethodSymbol(TR::ResolvedMethodSymbol * owningMethodSymbol, int32_t cpIndex)
