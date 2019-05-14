@@ -132,7 +132,6 @@ set(REMOVED_OMR_FILES
 	${omr_SOURCE_DIR}/compiler/runtime/Runtime.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRBytecodeBuilder.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRIlBuilder.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/OMRIlValue.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRJitBuilderRecorder.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRJitBuilderRecorderBinaryBuffer.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRJitBuilderRecorderBinaryFile.cpp
