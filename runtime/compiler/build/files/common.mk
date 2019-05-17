@@ -140,6 +140,7 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     omr/compiler/ilgen/IlInjector.cpp \
     omr/compiler/ilgen/OMRBytecodeBuilder.cpp \
     omr/compiler/ilgen/OMRIlBuilder.cpp \
+    omr/compiler/ilgen/OMRIlType.cpp \
     omr/compiler/ilgen/OMRIlValue.cpp \
     omr/compiler/ilgen/OMRMethodBuilder.cpp \
     omr/compiler/ilgen/OMRTypeDictionary.cpp \
