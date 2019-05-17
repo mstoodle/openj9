@@ -102,6 +102,9 @@ public:
       return TR::typed_allocator< T, TR::RawAllocator >(*this);
       }
 
+   // temporary until memory allocators unified with OMR
+   J9JavaVM * javaVM() { return _javaVM; }
+
 private:
 
    J9JavaVM * _javaVM;

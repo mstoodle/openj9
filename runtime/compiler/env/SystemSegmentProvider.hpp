@@ -39,6 +39,8 @@ class SystemSegmentProvider : public TR::SegmentAllocator
    {
 public:
    SystemSegmentProvider(size_t defaultSegmentSize, size_t systemSegmentSize, size_t allocationLimit, J9::J9SegmentProvider &segmentAllocator, TR::RawAllocator rawAllocator);
+   // temporary: for compatibility with JitBuilder until memory allocators can be unified with OMR
+   SystemSegmentProvider(size_t segmentSize, TR::RawAllocator rawAllocator);
    ~SystemSegmentProvider() throw();
    virtual TR::MemorySegment &request(size_t requiredSize);
    virtual void release(TR::MemorySegment &segment) throw();
@@ -60,8 +62,11 @@ private:
    size_t _allocationLimit;
    size_t _systemBytesAllocated;
    size_t _regionBytesAllocated;
+
+protected:
    J9::J9SegmentProvider & _systemSegmentAllocator;
 
+private:
    typedef TR::typed_allocator<
       TR::reference_wrapper<J9MemorySegment>,
       TR::RawAllocator
@@ -103,4 +108,51 @@ private:
 
 } // namespace J9
 
+// will be cleaner when memory allocators are unified for OMR and OpenJ9
+// for now, need a little magic here to support JitBuilder constructors
+namespace TR
+{
+   class SystemSegmentProvider : public J9::SystemSegmentProvider
+      {
+public:
+      SystemSegmentProvider(size_t defaultSegmentSize,
+                            size_t systemSegmentSize,
+                            size_t allocationLimit,
+                            J9::J9SegmentProvider &segmentAllocator,
+                            TR::RawAllocator rawAllocator)
+         : J9::SystemSegmentProvider(defaultSegmentSize,
+                                     systemSegmentSize,
+                                     allocationLimit,
+                                     segmentAllocator,
+                                     rawAllocator),
+           _mySegmentAllocator(false),
+           rawAllocator(rawAllocator)
+         { }
+
+      SystemSegmentProvider(size_t segmentSize, TR::RawAllocator rawAllocator)
+         : J9::SystemSegmentProvider(segmentSize,
+                                     segmentSize,
+                                     0,
+                                     *(new (rawAllocator) J9::SegmentAllocator((MEMORY_TYPE_JIT_SCRATCH_SPACE |
+                                                                                MEMORY_TYPE_VIRTUAL),
+                                                                             *(rawAllocator.javaVM()))),
+                                     rawAllocator),
+           _mySegmentAllocator(true),
+           rawAllocator(rawAllocator)
+         {  }
+
+      ~SystemSegmentProvider() throw()
+         {
+         if (_mySegmentAllocator)
+            {
+            static_cast<J9::SegmentAllocator *>(&_systemSegmentAllocator)->~SegmentAllocator();
+            rawAllocator.deallocate(&_systemSegmentAllocator);
+            }
+         }
+
+      private:
+         bool _mySegmentAllocator;
+         TR::RawAllocator rawAllocator;
+      };
+}
 #endif // J9_SYSTEMSEGMENTPROVIDER_H
