@@ -243,6 +243,11 @@ public:
 
 class TR_ResolvedJ9Method : public TR_J9Method, public TR_ResolvedJ9MethodBase
    {
+protected:
+   TR_ResolvedJ9Method(TR_FrontEnd *fe, TR_Memory * trMemory)
+      : TR_J9Method(fe, trMemory, 0), TR_ResolvedJ9MethodBase(fe, 0)
+      { }
+
 public:
    TR_ResolvedJ9Method(TR_OpaqueMethodBlock * aMethod, TR_FrontEnd *, TR_Memory *, TR_ResolvedMethod * owningMethod = 0, uint32_t vTableSlot = 0);
 
@@ -496,17 +501,141 @@ private:
    int32_t                 _pendingPushSlots;
    };
 
+
+// just to get going, bring JitBuilder::ResolvedMethod here as J9::JitBuilderMethod
+
+namespace TR { class FrontEnd; }
+namespace TR { class IlInjector; }
+namespace TR { class IlType; }
+namespace TR { class MethodBuilder; }
+
+namespace J9
+{
+
+class JitBuilderMethod : public TR_ResolvedJ9Method
+   {
+   public:
+   JitBuilderMethod(TR_FrontEnd *fe, TR_OpaqueMethodBlock *method);
+   JitBuilderMethod(TR_FrontEnd *fe, TR::MethodBuilder *methodBuilder);
+   JitBuilderMethod(TR::MethodBuilder *methodBuilder);
+   JitBuilderMethod(TR_FrontEnd *fe,
+                    const char      * fileName,
+                    const char      * lineNumber,
+                    char            * name,
+                    int32_t           numParms,
+                    TR::IlType     ** parmTypes,
+                    TR::IlType      * returnType,
+                    void            * entryPoint,
+                    TR::IlInjector  * ilInjector);
+   JitBuilderMethod(const char      * fileName,
+                    const char      * lineNumber,
+                    char            * name,
+                    int32_t           numParms,
+                    TR::IlType     ** parmTypes,
+                    TR::IlType      * returnType,
+                    void            * entryPoint,
+                    TR::IlInjector  * ilInjector); // should not be called, but there is a use in OMRMethodBuilder.cpp
+
+   virtual TR_Method           * convertToMethod()                          { return this; }
+
+   virtual const char          * signature(TR_Memory *, TR_AllocationKind);
+   virtual const char          * externalName(TR_Memory *, TR_AllocationKind);
+   char                        * localName (uint32_t slot, uint32_t bcIndex, int32_t &nameLength, TR_Memory *trMemory);
+
+   virtual char                * classNameChars()                           { return (char *)_fileName; }
+   virtual char                * nameChars()                                { return _name; }
+   virtual char                * signatureChars()                           { return _signatureChars; }
+   virtual uint16_t              signatureLength()                          { return strlen(signatureChars()); }
+
+   virtual void                * resolvedMethodAddress()                    { return (void *)_ilInjector; }
+
+   virtual uint16_t              numberOfParameterSlots()                   { return _numParms; }
+   virtual TR::DataType          parmType(uint32_t slot);
+   virtual uint16_t              numberOfTemps()                            { return 0; }
+
+   virtual void                * startAddressForJittedMethod()              { return (getEntryPoint()); }
+   virtual void                * startAddressForInterpreterOfJittedMethod() { return 0; }
+
+
+   virtual uint32_t              maxBytecodeIndex()                         { return 0; }
+   virtual uint8_t             * code()                                     { return NULL; }
+   virtual TR_OpaqueMethodBlock* getPersistentIdentifier()                  { return (TR_OpaqueMethodBlock *) _ilInjector; }
+   virtual bool                  isInterpreted()                            { return startAddressForJittedMethod() == 0; }
+
+   const char                  * getLineNumber()                            { return _lineNumber;}
+   char                        * getSignature()                             { return _signature;}
+   TR::DataType                  returnType();
+   TR::IlType                  * returnIlType()                             { return _returnType; }
+   int32_t                       getNumArgs()                               { return _numParms;}
+   void                          setEntryPoint(void *ep)                    { _entryPoint = ep; }
+   void                        * getEntryPoint()                            { return _entryPoint; }
+
+   void                          computeSignatureCharsPrimitive();
+   void                          computeSignatureChars();
+   virtual void                  makeParameterList(TR::ResolvedMethodSymbol *);
+
+   TR::IlInjector *getInjector(TR::IlGeneratorMethodDetails * details,
+                               TR::ResolvedMethodSymbol *methodSymbol,
+                               TR::FrontEnd *fe,
+                               TR::SymbolReferenceTable *symRefTab);
+
+   protected:
+   const char *_fileName;
+   const char *_lineNumber;
+
+   char *_name;
+   char *_signature;
+   char  _signatureChars[64];
+   char *_externalName;
+
+   int32_t          _numParms;
+   TR::IlType    ** _parmTypes;
+   TR::IlType     * _returnType;
+   void           * _entryPoint;
+   TR::IlInjector * _ilInjector;
+   };
+
+}
+
 namespace TR
 {
-   class ResolvedMethod : public TR_ResolvedJ9Method
+   class ResolvedMethod : public J9::JitBuilderMethod
       {
-      ResolvedMethod(TR_OpaqueMethodBlock * aMethod,
-                     TR_FrontEnd *fe,
-                     TR_Memory *trMemory,
-                     TR_ResolvedMethod * owningMethod = 0,
-                     uint32_t vTableSlot = 0)
-         : TR_ResolvedJ9Method(aMethod, fe, trMemory, owningMethod, vTableSlot)
+   public:
+      ResolvedMethod(TR_FrontEnd *fe, TR_OpaqueMethodBlock *method)
+         : J9::JitBuilderMethod(fe, method)
          { }
+
+      ResolvedMethod(TR_FrontEnd *fe, TR::MethodBuilder *methodBuilder)
+         : J9::JitBuilderMethod(fe, methodBuilder)
+         { }
+
+      ResolvedMethod(TR::MethodBuilder *methodBuilder)
+         : J9::JitBuilderMethod(methodBuilder)
+         { }
+
+      ResolvedMethod(TR_FrontEnd     * fe,
+                     const char      * fileName,
+                     const char      * lineNumber,
+                     char            * name,
+                     int32_t           numParms,
+                     TR::IlType     ** parmTypes,
+                     TR::IlType      * returnType,
+                     void            * entryPoint,
+                     TR::IlInjector  * ilInjector)
+            : J9::JitBuilderMethod(fe, fileName, lineNumber, name, numParms, parmTypes, returnType, entryPoint, ilInjector)
+            { }
+
+      ResolvedMethod(const char      * fileName,
+                     const char      * lineNumber,
+                     char            * name,
+                     int32_t           numParms,
+                     TR::IlType     ** parmTypes,
+                     TR::IlType      * returnType,
+                     void            * entryPoint,
+                     TR::IlInjector  * ilInjector)
+            : J9::JitBuilderMethod(fileName, lineNumber, name, numParms, parmTypes, returnType, entryPoint, ilInjector)
+            { }
       };
 }
 

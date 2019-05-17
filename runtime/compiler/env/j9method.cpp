@@ -2299,20 +2299,23 @@ TR_J9Method::TR_J9Method(TR_FrontEnd * fe, TR_Memory * trMemory, J9Class * aClaz
 
 TR_J9Method::TR_J9Method(TR_FrontEnd * fe, TR_Memory * trMemory, TR_OpaqueMethodBlock * aMethod)
    {
-   J9ROMMethod * romMethod;
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
-
+   if (aMethod)
       {
-      TR::VMAccessCriticalSection j9method(fej9);
-      romMethod = getOriginalROMMethod((J9Method *)aMethod);
+      J9ROMMethod * romMethod;
+      TR_J9VMBase *fej9 = (TR_J9VMBase *)fe;
+
+         {
+         TR::VMAccessCriticalSection j9method(fej9);
+         romMethod = getOriginalROMMethod((J9Method *)aMethod);
+         }
+
+      J9ROMClass *romClass = J9_CLASS_FROM_METHOD(((J9Method *)aMethod))->romClass;
+      _className = J9ROMCLASS_CLASSNAME(romClass);
+      _name = J9ROMMETHOD_GET_NAME(romClass, romMethod);
+      _signature = J9ROMMETHOD_GET_SIGNATURE(romClass, romMethod);
+
+      parseSignature(trMemory);
       }
-
-   J9ROMClass *romClass = J9_CLASS_FROM_METHOD(((J9Method *)aMethod))->romClass;
-   _className = J9ROMCLASS_CLASSNAME(romClass);
-   _name = J9ROMMETHOD_GET_NAME(romClass, romMethod);
-   _signature = J9ROMMETHOD_GET_SIGNATURE(romClass, romMethod);
-
-   parseSignature(trMemory);
    _fullSignature = NULL;
    }
 
@@ -8721,4 +8724,243 @@ TR_J9ByteCodeIlGenerator::walkReferenceChain(TR::Node *node, uintptrj_t receiver
       }
 
    return result;
+   }
+
+
+// just to get going, bring JitBuilder::ResolvedMethod here as J9::JitBuilderMethod
+
+#include "compile/Method.hpp"
+#include "compile/Compilation.hpp"
+#include "il/SymbolReference.hpp"
+#include "il/symbol/ParameterSymbol.hpp"
+#include "ilgen/TypeDictionary.hpp"
+#include "ilgen/IlInjector.hpp"
+#include "ilgen/IlBuilder.hpp"
+#include "ilgen/MethodBuilder.hpp"
+#include "ilgen/IlGeneratorMethodDetails_inlines.hpp"
+
+// needs major overhaul
+J9::JitBuilderMethod::JitBuilderMethod(TR_FrontEnd *fe, TR_OpaqueMethodBlock *method)
+   : TR_ResolvedJ9Method(fe, (reinterpret_cast<TR::IlInjector *>(method))->typeDictionary()->trMemory())
+   {
+   _ilInjector = reinterpret_cast<TR::IlInjector *>(method);
+
+   TR::ResolvedMethod * resolvedMethod = (TR::ResolvedMethod *)_ilInjector->methodSymbol()->getResolvedMethod();
+   _fileName = resolvedMethod->classNameChars();
+   _name = resolvedMethod->nameChars();
+   _numParms = resolvedMethod->getNumArgs();
+   _parmTypes = resolvedMethod->_parmTypes;
+   _lineNumber = resolvedMethod->getLineNumber();
+   _returnType = resolvedMethod->returnIlType();
+   _signature = resolvedMethod->getSignature();
+   _externalName = 0;
+   _entryPoint = resolvedMethod->getEntryPoint();
+   strncpy(_signatureChars, resolvedMethod->signatureChars(), 62); // TODO: introduce concept of robustness...62?
+   }
+
+J9::JitBuilderMethod::JitBuilderMethod(TR_FrontEnd *fe, TR::MethodBuilder *m)
+   : TR_ResolvedJ9Method(fe, m->typeDictionary()->trMemory())
+//   : TR_ResolvedJ9Method(m->fe(), m->typeDictionary()->trMemory())
+   , _fileName(m->getDefiningFile())
+   , _lineNumber(m->getDefiningLine())
+   , _name((char *)m->GetMethodName()) // sad cast
+   , _numParms(m->getNumParameters())
+   , _parmTypes(m->getParameterTypes())
+   , _returnType(m->getReturnType())
+   , _entryPoint(0)
+   , _signature(0)
+   , _externalName(0)
+   , _ilInjector(static_cast<TR::IlInjector *>(m))
+   {
+   computeSignatureChars();
+   }
+
+J9::JitBuilderMethod::JitBuilderMethod(TR::MethodBuilder *m)
+      : TR_ResolvedJ9Method(NULL, m->typeDictionary()->trMemory())
+   {
+   TR_ASSERT_FATAL(0, "constructor should not be called");
+   }
+
+J9::JitBuilderMethod::JitBuilderMethod(TR_FrontEnd     * fe,
+                                       const char      * fileName,
+                                       const char      * lineNumber,
+                                       char            * name,
+                                       int32_t           numParms,
+                                       TR::IlType     ** parmTypes,
+                                       TR::IlType      * returnType,
+                                       void            * entryPoint,
+                                       TR::IlInjector  * ilInjector)
+      : TR_ResolvedJ9Method(fe, ilInjector->typeDictionary()->trMemory())
+      , _fileName(fileName)
+      , _lineNumber(lineNumber)
+      , _name(name)
+      , _signature(0)
+      , _numParms(numParms)
+      , _parmTypes(parmTypes)
+      , _returnType(returnType)
+      , _entryPoint(entryPoint)
+      , _ilInjector(ilInjector)
+      {
+      computeSignatureChars();
+      }
+
+J9::JitBuilderMethod::JitBuilderMethod(const char      * fileName,
+                                       const char      * lineNumber,
+                                       char            * name,
+                                       int32_t           numParms,
+                                       TR::IlType     ** parmTypes,
+                                       TR::IlType      * returnType,
+                                       void            * entryPoint,
+                                       TR::IlInjector  * ilInjector)
+      : TR_ResolvedJ9Method(NULL, ilInjector->typeDictionary()->trMemory())
+   {
+   TR_ASSERT_FATAL(0, "constructor should not be called");
+   }
+
+const char *
+J9::JitBuilderMethod::signature(TR_Memory * trMemory, TR_AllocationKind allocKind)
+   {
+   if( !_signature )
+      {
+      char * s = (char *)trMemory->allocateMemory(strlen(_fileName) + 1 + strlen(_lineNumber) + 1 + strlen(_name) + 1, allocKind);
+      sprintf(s, "%s:%s:%s", _fileName, _lineNumber, _name);
+
+      if ( allocKind == heapAlloc)
+        _signature = s;
+
+      return s;
+      }
+   else
+      return _signature;
+   }
+
+const char *
+J9::JitBuilderMethod::externalName(TR_Memory *trMemory, TR_AllocationKind allocKind)
+   {
+   if( !_externalName)
+      {
+      // For C++, need to mangle name
+      //char * s = (char *)trMemory->allocateMemory(1 + strlen(_name) + 1, allocKind);
+      //sprintf(s, "_Z%d%si", (int32_t)strlen(_name), _name);
+
+
+      // functions must be defined as extern "C"
+      _externalName = _name;
+
+      //if ( allocKind == heapAlloc)
+      //  _externalName = s;
+      }
+
+   return _externalName;
+   }
+
+TR::DataType
+J9::JitBuilderMethod::parmType(uint32_t slot)
+   {
+   TR_ASSERT((slot < _numParms), "Invalid slot provided for Parameter Type");
+   return _parmTypes[slot]->getPrimitiveType();
+   }
+
+void
+J9::JitBuilderMethod::computeSignatureChars()
+   {
+   char *name=NULL;
+   uint32_t len=3;
+   for (int32_t p=0;p < _numParms;p++)
+      {
+      TR::IlType *type = _parmTypes[p];
+      len += strlen(type->getSignatureName());
+      }
+   len += strlen(_returnType->getSignatureName());
+   TR_ASSERT(len < 64, "signature array may not be large enough"); // TODO: robustness
+
+   int32_t s = 0;
+   _signatureChars[s++] = '(';
+   for (int32_t p=0;p < _numParms;p++)
+      {
+      name = _parmTypes[p]->getSignatureName();
+      len = strlen(name);
+      strncpy(_signatureChars+s, name, len);
+      s += len;
+      }
+   _signatureChars[s++] = ')';
+   name = _returnType->getSignatureName();
+   len = strlen(name);
+   strncpy(_signatureChars+s, name, len);
+   s += len;
+   _signatureChars[s++] = 0;
+   }
+
+void
+J9::JitBuilderMethod::makeParameterList(TR::ResolvedMethodSymbol *methodSym)
+   {
+   ListAppender<TR::ParameterSymbol> la(&methodSym->getParameterList());
+   TR::ParameterSymbol *parmSymbol;
+   int32_t slot = 0;
+   int32_t ordinal = 0;
+
+   uint32_t parmSlots = numberOfParameterSlots();
+   for (int32_t parmIndex = 0; parmIndex < parmSlots; ++parmIndex)
+      {
+      TR::IlType *type = _parmTypes[parmIndex];
+      TR::DataType dt = type->getPrimitiveType();
+      int32_t size = methodSym->convertTypeToSize(dt);
+
+      parmSymbol = methodSym->comp()->getSymRefTab()->createParameterSymbol(methodSym, slot, type->getPrimitiveType());
+      parmSymbol->setOrdinal(ordinal++);
+
+      char *s = type->getSignatureName();
+      uint32_t len = strlen(s);
+      parmSymbol->setTypeSignature(s, len);
+
+      la.add(parmSymbol);
+
+      ++slot;
+      }
+
+   int32_t lastInterpreterSlot = slot + numberOfTemps();
+   methodSym->setTempIndex(lastInterpreterSlot, methodSym->comp()->fe());
+   methodSym->setFirstJitTempIndex(methodSym->getTempIndex());
+   }
+
+char *
+J9::JitBuilderMethod::localName(uint32_t slot,
+                                uint32_t bcIndex,
+                                int32_t &nameLength,
+                                TR_Memory *trMemory)
+   {
+   char *name=NULL;
+   if (_ilInjector != NULL && _ilInjector->isMethodBuilder())
+      {
+      TR::MethodBuilder *bldr = _ilInjector->asMethodBuilder();
+      name = (char *) bldr->getSymbolName(slot);
+      if (name == NULL)
+         {
+         name = "";
+         }
+      }
+   else
+      {
+      name = (char *) trMemory->allocateHeapMemory(8 * sizeof(char));
+      sprintf(name, "Parm %2d", slot);
+      }
+
+   nameLength = strlen(name);
+   return name;
+   }
+
+TR::IlInjector *
+J9::JitBuilderMethod::getInjector (TR::IlGeneratorMethodDetails * details,
+   TR::ResolvedMethodSymbol *methodSymbol,
+   TR::FrontEnd *fe,
+   TR::SymbolReferenceTable *symRefTab)
+   {
+   _ilInjector->initialize(details, methodSymbol, fe, symRefTab);
+   return _ilInjector;
+   }
+
+TR::DataType
+J9::JitBuilderMethod::returnType()
+   {
+   return _returnType->getPrimitiveType();
    }
