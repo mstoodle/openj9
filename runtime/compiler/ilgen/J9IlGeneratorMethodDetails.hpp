@@ -46,10 +46,13 @@ class TR_IlGenerator;
 class TR_InlineBlocks;
 class TR_J9VMBase;
 class TR_ResolvedMethod;
+namespace OMR { namespace JitBuilder { class MethodBuilder; } }
 namespace TR { class Compilation; }
 namespace TR { class IlGeneratorMethodDetails; }
+namespace TR { class ResolvedMethod; }
 namespace TR { class ResolvedMethodSymbol; }
 namespace TR { class SymbolReferenceTable;}
+
 
 namespace J9
 {
@@ -86,6 +89,7 @@ public:
    virtual bool isMethodInProgress()   const { return false; }
    virtual bool isArchetypeSpecimen()  const { return false; }
    virtual bool isMethodHandleThunk()  const { return false; }
+   virtual bool isMethodBuilder()      const { return false; }
    virtual bool supportsInvalidation() const { return true; }
 
    J9Method *getMethod() const { return _method; }
@@ -123,6 +127,8 @@ protected:
          uintptrj_t *_handleRef;
          uintptrj_t *_argRef;
          } _methodHandleData;
+      TR::ResolvedMethod * _resolvedMethod;
+      OMR::JitBuilder::MethodBuilder * _methodBuilder;
       } _data;
 
    };

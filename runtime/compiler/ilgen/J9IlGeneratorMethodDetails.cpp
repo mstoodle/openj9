@@ -34,7 +34,9 @@
 #include "ilgen/IlGeneratorMethodDetails_inlines.hpp"
 #include "ilgen/J9ByteCodeIlGenerator.hpp"
 #include "env/VMJ9.h"
+#include "env/ConcreteFE.hpp" // for MethodBuilderDetails
 
+#include "JitBuilder.hpp"
 
 
 namespace J9
@@ -60,6 +62,10 @@ IlGeneratorMethodDetails::clone(TR::IlGeneratorMethodDetails &storage, const TR:
          return new (&storage) ShareableInvokeExactThunkDetails(static_cast<const ShareableInvokeExactThunkDetails &>(other));
       else if (static_cast<const MethodHandleThunkDetails &>(other).isCustom())
          return new (&storage) CustomInvokeExactThunkDetails(static_cast<const CustomInvokeExactThunkDetails &>(other));
+      }
+   else if (other.isMethodBuilder())
+      {
+      return new (&storage) MethodBuilderDetails(static_cast<const MethodBuilderDetails &>(other));
       }
 
    TR_ASSERT(0, "Unexpected IlGeneratorMethodDetails object\n");
@@ -290,6 +296,55 @@ CustomInvokeExactThunkDetails::isSameThunk(MethodHandleThunkDetails & other, TR_
 
    // Same thunk request iff it's for the same handle with the same arg
    return sameHandle && sameArg;
+   }
+
+// MethodBuilderDetails
+
+MethodBuilderDetails::MethodBuilderDetails()
+   : TR::IlGeneratorMethodDetails()
+   {
+   _data._methodBuilder = NULL;
+   }
+
+MethodBuilderDetails::MethodBuilderDetails(OMR::JitBuilder::MethodBuilder *methodBuilder)
+   : TR::IlGeneratorMethodDetails()
+   {
+   _data._methodBuilder = methodBuilder;
+   }
+
+MethodBuilderDetails::MethodBuilderDetails(const MethodBuilderDetails & other)
+   : TR::IlGeneratorMethodDetails()
+   {
+   _data._methodBuilder = other.methodBuilder();
+   }
+
+bool
+MethodBuilderDetails::sameAs(TR::IlGeneratorMethodDetails & other, TR_FrontEnd *fe)
+   {
+   return other.isMethodBuilder() && methodBuilder() == reinterpret_cast<J9::MethodBuilderDetails &>(other).methodBuilder();
+   }
+
+TR_IlGenerator *
+MethodBuilderDetails::getIlGenerator(TR::ResolvedMethodSymbol *methodSymbol,
+                                    TR_FrontEnd * fe,
+                                    TR::Compilation *comp,
+                                    TR::SymbolReferenceTable *symRefTab,
+                                    bool forceClassLookahead,
+                                    TR_InlineBlocks *blocksToInline)
+   {
+   TR_ASSERT(forceClassLookahead == false, "MethodBuilders do not support class lookahead");
+   TR_ASSERT(blocksToInline == 0, "MethodBuilders do not yet support partial inlining");
+   TR::ResolvedMethod *method = static_cast<TR::ResolvedMethod *>(methodSymbol->getResolvedMethod());
+   return (TR_IlGenerator *) method->getInjector(this, methodSymbol, static_cast<TR::FrontEnd *>(fe), symRefTab);
+   }
+
+void
+MethodBuilderDetails::printDetails(TR_FrontEnd *fe, TR::FILE *file)
+   {
+   if (file == NULL)
+      return;
+
+   trfprintf(file, "( MethodBuilder %p %s )", getMethod(), methodBuilder()->GetMethodName());
    }
 
 }

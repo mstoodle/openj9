@@ -54,6 +54,7 @@ public:
 
 }
 
+namespace OMR { namespace JitBuilder { class MethodBuilder; } }
 
 namespace J9
 {
@@ -293,6 +294,37 @@ private:
    };
 
 
+class MethodBuilderDetails : public TR::IlGeneratorMethodDetails
+   {
+   // Objects cannot hold data of its own: must store in the _data union in TR::IlGeneratorMethodDetails
+
+public:
+   MethodBuilderDetails();
+   MethodBuilderDetails(OMR::JitBuilder::MethodBuilder *methodBuilder);
+   MethodBuilderDetails(const MethodBuilderDetails & other);
+
+   virtual bool isOrdinaryMethod()                  const { return false; }
+   virtual bool isMethodBuilder()                   const { return true; }
+   virtual bool supportsInvalidation()              const { return false; }
+   virtual J9Class *getClass()                      const { return NULL; }
+
+   virtual bool sameAs(TR::IlGeneratorMethodDetails & other, TR_FrontEnd *fe);
+
+   OMR::JitBuilder::MethodBuilder * methodBuilder() const { return _data._methodBuilder; }
+
+   virtual const char * name()                      const { return "MethodBuilder"; }
+
+   virtual void printDetails(TR_FrontEnd *fe, TR::FILE *file);
+
+   virtual TR_IlGenerator *getIlGenerator(TR::ResolvedMethodSymbol *methodSymbol,
+                                          TR_FrontEnd * fe,
+                                          TR::Compilation *comp,
+                                          TR::SymbolReferenceTable *symRefTab,
+                                          bool forceClassLookahead,
+                                          TR_InlineBlocks *blocksToInline);
+   };
+
 }
+
 
 #endif
