@@ -144,6 +144,11 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     omr/compiler/ilgen/OMRIlValue.cpp \
     omr/compiler/ilgen/OMRMethodBuilder.cpp \
     omr/compiler/ilgen/OMRTypeDictionary.cpp \
+    omr/compiler/ilgen/OMRVirtualMachineOperandArray.cpp \
+    omr/compiler/ilgen/OMRVirtualMachineOperandStack.cpp \
+    omr/compiler/ilgen/OMRVirtualMachineRegister.cpp \
+    omr/compiler/ilgen/OMRVirtualMachineRegisterInStruct.cpp \
+    omr/compiler/ilgen/OMRVirtualMachineState.cpp \
     omr/compiler/infra/Assert.cpp \
     omr/compiler/infra/BitVector.cpp \
     omr/compiler/infra/Checklist.cpp \
