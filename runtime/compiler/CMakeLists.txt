@@ -135,7 +135,6 @@ set(REMOVED_OMR_FILES
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRJitBuilderRecorderBinaryBuffer.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRJitBuilderRecorderBinaryFile.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRJitBuilderRecorderTextFile.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/OMRMethodBuilder.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRThunkBuilder.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRTypeDictionary.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRVirtualMachineOperandArray.cpp
