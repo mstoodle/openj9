@@ -141,6 +141,7 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     omr/compiler/ilgen/OMRIlBuilder.cpp \
     omr/compiler/ilgen/OMRIlValue.cpp \
     omr/compiler/ilgen/OMRMethodBuilder.cpp \
+    omr/compiler/ilgen/OMRTypeDictionary.cpp \
     omr/compiler/infra/Assert.cpp \
     omr/compiler/infra/BitVector.cpp \
     omr/compiler/infra/Checklist.cpp \
@@ -153,6 +154,7 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     omr/compiler/infra/OMRMonitorTable.cpp \
     omr/compiler/infra/Random.cpp \
     omr/compiler/infra/SimpleRegex.cpp \
+    omr/compiler/infra/STLUtils.cpp \
     omr/compiler/infra/Timer.cpp \
     omr/compiler/infra/TreeServices.cpp \
     omr/compiler/optimizer/AsyncCheckInsertion.cpp \
