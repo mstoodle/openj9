@@ -524,6 +524,17 @@ j9jit_createNewInstanceThunk(struct J9JITConfig * jitConfig, J9VMThread * vmThre
    }
 
 
+// provided only to match OMRMethodBuilder's call, but should never be used
+uint8_t *
+compileMethodFromDetails(
+      OMR_VMThread *omrVMThread,
+      TR::IlGeneratorMethodDetails & details,
+      TR_Hotness hotness,
+      int32_t &rc)
+   {
+   TR_ASSERT_FATAL(0, "compileMethodFromDetails should never be called");
+   }
+
 // -----------------------------------------------------------------------------
 // JIT shutdown
 // -----------------------------------------------------------------------------
