@@ -143,6 +143,7 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     omr/compiler/ilgen/OMRIlType.cpp \
     omr/compiler/ilgen/OMRIlValue.cpp \
     omr/compiler/ilgen/OMRMethodBuilder.cpp \
+    omr/compiler/ilgen/OMRThunkBuilder.cpp \
     omr/compiler/ilgen/OMRTypeDictionary.cpp \
     omr/compiler/ilgen/OMRVirtualMachineOperandArray.cpp \
     omr/compiler/ilgen/OMRVirtualMachineOperandStack.cpp \

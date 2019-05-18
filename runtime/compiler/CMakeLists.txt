@@ -134,7 +134,6 @@ set(REMOVED_OMR_FILES
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRJitBuilderRecorderBinaryBuffer.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRJitBuilderRecorderBinaryFile.cpp
 	${omr_SOURCE_DIR}/compiler/ilgen/OMRJitBuilderRecorderTextFile.cpp
-	${omr_SOURCE_DIR}/compiler/ilgen/OMRThunkBuilder.cpp
 )
 
 get_target_property(compiler_defines j9vm_compiler_defines INTERFACE_COMPILE_DEFINITIONS)
