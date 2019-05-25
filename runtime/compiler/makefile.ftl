@@ -39,7 +39,7 @@ export JIT_SRCBASE=$(J9SRC)
 export JIT_OBJBASE=$(J9SRC)/objs
 export JIT_DLL_DIR=$(J9SRC)
 export OMR_DIR=$(J9SRC)/omr
-export BUILD_CONFIG?=prod
+export BUILD_CONFIG=debug
 
 # Define the JIT PLATFORM
 
