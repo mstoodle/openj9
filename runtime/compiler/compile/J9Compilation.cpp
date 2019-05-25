@@ -67,7 +67,7 @@ bool firstCompileStarted = false;
 
 void *operator new(size_t size)
    {
-#if defined(DEBUG)
+#if 0 // defined(DEBUG)
    #if LINUX
    // glibc allocates something at dl_init; check if a method is being compiled to avoid
    // getting assumes at _dl_init
