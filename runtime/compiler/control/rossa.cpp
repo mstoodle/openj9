@@ -106,6 +106,8 @@
 #include "ras/DebugExt.hpp"
 #include "env/exports.h"
 
+#include "JitBuilder.hpp"
+
 extern "C" int32_t encodeCount(int32_t count);
 
 #if defined(TR_HOST_POWER)
@@ -516,6 +518,45 @@ j9jit_createNewInstanceThunk_err(
    return result;
    }
 
+extern "C" UDATA
+j9jit_compileMethodBuilder_err(
+      struct J9JITConfig *jitConfig,
+      J9VMThread *vmThread,
+      void * methodBuilder,
+      TR_CompilationErrorCode *compErrCode)
+   {
+   TR::CompilationInfo * compInfo = getCompilationInfo(jitConfig);
+   if (!methodBuilder)
+      {
+      *compErrCode = compilationFailure;
+      return 0;
+      }
+   bool queued = false;
+
+   TR_MethodEvent event;
+   event._eventType = TR_MethodEvent::MethodBuilder;
+   event._j9method = 0;
+   event._oldStartPC = 0;
+   event._vmThread = vmThread;
+   event._methodBuilder = reinterpret_cast<OMR::JitBuilder::MethodBuilder *>(methodBuilder);
+   bool newPlanCreated;
+   TR_OptimizationPlan *plan = TR::CompilationController::getCompilationStrategy()->processEvent(&event, &newPlanCreated);
+   UDATA result = 0;
+   if (plan)
+      {
+      // if the controller decides to compile this method, trigger a synchronous compilation and wait here
+
+         { // scope for details
+         J9::MethodBuilderDetails details(reinterpret_cast<OMR::JitBuilder::MethodBuilder *>(methodBuilder));
+         result = (UDATA)compInfo->compileMethod(vmThread, details, 0, TR_no, compErrCode, &queued, plan);
+         }
+
+      if (!queued && newPlanCreated)
+         TR_OptimizationPlan::freeOptimizationPlan(plan);
+      }
+
+   return result;
+   }
 
 extern "C" UDATA
 j9jit_createNewInstanceThunk(struct J9JITConfig * jitConfig, J9VMThread * vmThread, J9Class * classNeedingThunk)

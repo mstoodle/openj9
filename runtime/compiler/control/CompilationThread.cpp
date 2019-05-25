@@ -93,6 +93,9 @@
 #include "env/SystemSegmentProvider.hpp"
 #include "env/DebugSegmentProvider.hpp"
 
+#include "ilgen/MethodBuilder.hpp"
+#include "JitBuilder.hpp"
+
 #if defined(J9VM_OPT_SHARED_CLASSES)
 #include "j9jitnls.h"
 #endif
@@ -442,7 +445,8 @@ bool TR::CompilationInfo::shouldDowngradeCompReq(TR_MethodToBeCompiled *entry)
    {
    bool doDowngrade = false;
    J9Method *method = entry->getMethodDetails().getMethod();
-   if (!isCompiled(method) && /*entry->_priority <= CP_ASYNC_MAX &&*/
+   if (!entry->getMethodDetails().isMethodBuilder() &&
+       !isCompiled(method) && /*entry->_priority <= CP_ASYNC_MAX &&*/
        entry->_optimizationPlan->getOptLevel() == warm && // only warm compilations are subject to downgrades
        !entry->isDLTCompile() &&
        !TR::Options::getCmdLineOptions()->getOption(TR_DontDowngradeToCold))
@@ -1207,12 +1211,16 @@ TR::CompilationInfo::getMethodBytecodeSize(J9ROMMethod * romMethod)
 uint32_t
 TR::CompilationInfo::getMethodBytecodeSize(J9Method* method)
    {
+   if (comp() && comp()->ilGenRequest().details().isMethodBuilder())
+      return 0;
    return getMethodBytecodeSize(J9_ROM_METHOD_FROM_RAM_METHOD(method));
    }
 
 bool
 TR::CompilationInfo::isJSR292(J9Method *j9method) // Check to see if the J9AccMethodHasMethodHandleInvokes flag is set
    {
+   if (comp() && comp()->ilGenRequest().details().isMethodBuilder())
+      return false;
    return (_J9ROMMETHOD_J9MODIFIER_IS_SET((J9_ROM_METHOD_FROM_RAM_METHOD(j9method)), J9AccMethodHasMethodHandleInvokes));
    }
 
@@ -4793,6 +4801,10 @@ void *TR::CompilationInfo::startPCIfAlreadyCompiled(J9VMThread * vmThread, TR::I
 
       return thunkStartPC;
       }
+   else if (details.isMethodBuilder())
+      {
+      return 0;
+      }
 
    void *startPC = 0;
    J9Method *method = details.getMethod();
@@ -4892,10 +4904,14 @@ void *TR::CompilationInfo::compileMethod(J9VMThread * vmThread, TR::IlGeneratorM
    if (details.isMethodHandleThunk())
       methodHandleThunkDetails = & static_cast<J9::MethodHandleThunkDetails &>(details);
 
+   J9::MethodBuilderDetails *methodBuilderDetails = NULL;
+   if (details.isMethodBuilder())
+      methodBuilderDetails = & static_cast<J9::MethodBuilderDetails &>(details);
+
    J9Class *clazz = NULL;
    if (newInstanceThunkDetails)
       clazz = newInstanceThunkDetails->getClass();
-   else
+   else if (!methodBuilderDetails)
       clazz = (J9Class*)J9JitMemory::convertClassPtrToClassOffset(J9_CLASS_FROM_METHOD(details.getMethod()));
 
    bool verbose = TR::Options::getCmdLineOptions()->getVerboseOption(TR_VerboseCompileRequest);
@@ -4919,6 +4935,10 @@ void *TR::CompilationInfo::compileMethod(J9VMThread * vmThread, TR::IlGeneratorM
          TR_VerboseLog::write(" handle=%p", (void*)*(methodHandleThunkDetails->getHandleRef()));
          if (methodHandleThunkDetails->getArgRef())
             TR_VerboseLog::write(" arg=%p", (void*)*(methodHandleThunkDetails->getArgRef()));
+         }
+      else if (methodBuilderDetails)
+         {
+         TR_VerboseLog::write(" methodBuilder=%p", (void*)(methodBuilderDetails->methodBuilder()));
          }
 
       char buf[500];
@@ -5033,7 +5053,7 @@ void *TR::CompilationInfo::compileMethod(J9VMThread * vmThread, TR::IlGeneratorM
          if (startPC || fe->isAOT_DEPRECATED_DO_NOT_USE())
             needCompile = false;
          } // if
-      else if (!oldStartPC && !details.isMethodInProgress())
+      else if (!oldStartPC && !details.isMethodInProgress() && !methodBuilderDetails)
          {
          if (isCompiled(method))
             {
@@ -6525,7 +6545,7 @@ TR::CompilationInfoPerThreadBase::postCompilationTasks(J9VMThread * vmThread,
    TR::IlGeneratorMethodDetails & details = entry->getMethodDetails();
    if (details.isNewInstanceThunk())
       clazz = static_cast<J9::NewInstanceThunkDetails &>(details).getClass();
-   else
+   else if (!details.isMethodBuilder())
       clazz = (J9Class*)J9JitMemory::convertClassPtrToClassOffset(J9_CLASS_FROM_METHOD(details.getMethod()));
 
    if (entry->_unloadedMethod) // method was unloaded while we were trying to compile it
@@ -7019,6 +7039,14 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
          J9::NewInstanceThunkDetails &niDetails = static_cast<J9::NewInstanceThunkDetails &>(details);
          compilee = vm->createResolvedMethod(p->trMemory(), method, NULL, (TR_OpaqueClassBlock *) niDetails.getClass());
          }
+      else if (details.isMethodBuilder())
+         {
+         J9::MethodBuilderDetails mbDetails = static_cast<J9::MethodBuilderDetails &>(details);
+         OMR::JitBuilder::MethodBuilder *mbClient = mbDetails.methodBuilder();
+         TR::MethodBuilder *mbImpl = static_cast<TR::MethodBuilder *>(static_cast<TR::IlBuilder *>(mbClient->_impl));
+         TR::ResolvedMethod *m = new (p->trMemory(), heapAlloc) TR::ResolvedMethod(vm, mbImpl);
+         compilee = static_cast<TR_ResolvedMethod *>(m);
+         }
       else
          {
          compilee = vm->createResolvedMethod(p->trMemory(), method);
@@ -7103,7 +7131,7 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
                that->getCompThreadId());
 
          // Determine if known annotations exist and if so, keep annotations enabled
-         if (!that->_methodBeingCompiled->_aotCodeToBeRelocated && !vm->isAOT_DEPRECATED_DO_NOT_USE() && options->getOption(TR_EnableAnnotations)) // KEN
+         if (!details.isMethodBuilder() && !that->_methodBeingCompiled->_aotCodeToBeRelocated && !vm->isAOT_DEPRECATED_DO_NOT_USE() && options->getOption(TR_EnableAnnotations)) // KEN
             {
             if (!TR_AnnotationBase::scanForKnownAnnotationsAndRecord(&that->_compInfo, details.getMethod(), vmThread->javaVM, vm))
                options->setOption(TR_EnableAnnotations,false);
@@ -7520,23 +7548,26 @@ TR::CompilationInfoPerThreadBase::wrappedCompile(J9PortLibrary *portLib, void * 
             {
             uint64_t proposedScratchMemoryLimit = (uint64_t)TR::Options::getScratchSpaceLimit();
 
-            // Check if the the method to be compiled is a JSR292 method
-            if (TR::CompilationInfo::isJSR292(details.getMethod()))
+            if (!details.isMethodBuilder())
                {
-               /* Set options */
-               compiler->getOptions()->setOption(TR_Server);
-               compiler->getOptions()->setOption(TR_ProcessHugeMethods);
+               // Check if the the method to be compiled is a JSR292 method
+               if (TR::CompilationInfo::isJSR292(details.getMethod()))
+                  {
+                  /* Set options */
+                  compiler->getOptions()->setOption(TR_Server);
+                  compiler->getOptions()->setOption(TR_ProcessHugeMethods);
 
-               // Try to increase scratch space limit for JSR292 compilations
-               proposedScratchMemoryLimit *= TR::Options::getScratchSpaceFactorWhenJSR292Workload();
-               }
+                  // Try to increase scratch space limit for JSR292 compilations
+                  proposedScratchMemoryLimit *= TR::Options::getScratchSpaceFactorWhenJSR292Workload();
+                  }
 
-            // Check if the method to be compiled is a Thunk Archetype
-            if (details.isMethodHandleThunk())
-               {
-               compiler->getOptions()->setAllowRecompilation(false);
-               options->setOption(TR_DisableOSR);
-               options->setOption(TR_EnableOSR, false);
+               // Check if the method to be compiled is a Thunk Archetype
+               if (details.isMethodHandleThunk())
+                  {
+                  compiler->getOptions()->setAllowRecompilation(false);
+                  options->setOption(TR_DisableOSR);
+                  options->setOption(TR_EnableOSR, false);
+                  }
                }
 
             // Check to see if there is sufficient physical memory available for this compilation
@@ -9438,7 +9469,7 @@ TR::CompilationInfo::compilationEnd(J9VMThread * vmThread, TR::IlGeneratorMethod
                      }
                   }
                }
-            else // Non-AOT compilation
+            else if (!details.isMethodBuilder())  // Non-AOT and non-MethodBuilder compilation
                {
                jitMethodTranslated(vmThread, method, startPC);
                }
@@ -9709,7 +9740,8 @@ void TR::CompilationInfoPerThreadBase::logCompilationSuccess(
          TR_Hotness h = compiler->getMethodHotness();
          if (h < numHotnessLevels)
             _compInfo._statsOptLevels[(int32_t)h]++;
-         if (_methodBeingCompiled->isJNINative())
+         TR::IlGeneratorMethodDetails & details = _methodBeingCompiled->getMethodDetails();
+         if (!details.isMethodBuilder() && _methodBeingCompiled->isJNINative())
             _compInfo._statNumJNIMethodsCompiled++;
          const char * hotnessString = compiler->getHotnessName(h);
          TR_ASSERT(hotnessString, "expected to have a hotness string");
@@ -9793,17 +9825,21 @@ void TR::CompilationInfoPerThreadBase::logCompilationSuccess(
             if (recompReason == 'T')
                TR_VerboseLog::write(" %.2f%%", optimizationPlan->getPerceivedCPUUtil() / 10.0);
 
-            TR_VerboseLog::write(" %c", recompReason);
+            if (details.isMethodBuilder())
+               TR_VerboseLog::write(" JitBuilder");
+            else
+               TR_VerboseLog::write(" %c", recompReason);
 
             TR_VerboseLog::write(" Q_SZ=%d Q_SZI=%d QW=%d", _compInfo.getMethodQueueSize(),
                                  _compInfo.getNumQueuedFirstTimeCompilations(), _compInfo.getQueueWeight());
 
-            TR_VerboseLog::write(" j9m=%p bcsz=%u", method, TR::CompilationInfo::getMethodBytecodeSize(method));
+            if (!details.isMethodBuilder())
+               TR_VerboseLog::write(" j9m=%p bcsz=%u", method, TR::CompilationInfo::getMethodBytecodeSize(method));
 
             if (_compInfo.useSeparateCompilationThread() && !_methodBeingCompiled->_async)
                TR_VerboseLog::write(" sync"); // flag the synchronous compilations
 
-            if (_methodBeingCompiled->isJNINative())
+            if (!details.isMethodBuilder() && _methodBeingCompiled->isJNINative())
                TR_VerboseLog::write(" JNI"); // flag JNI compilations
 
             if (compiler->getOption(TR_EnableOSR))
@@ -9899,11 +9935,11 @@ void TR::CompilationInfoPerThreadBase::logCompilationSuccess(
          snprintf(compilationAttributes, sizeof(compilationAttributes), "%s %s %s %s %s %s %s",
                       prexString,
                       (_compInfo.useSeparateCompilationThread() && !_methodBeingCompiled->_async) ? "sync" : "",
-                      TR::CompilationInfo::isJNINative(method) ? "JNI" : "",
+                      (!details.isMethodBuilder() && TR::CompilationInfo::isJNINative(method)) ? "JNI" : "",
                       compiler->getOption(TR_EnableOSR) ? "OSR" : "",
                       (compiler->getRecompilationInfo() && compiler->getRecompilationInfo()->getJittedBodyInfo()->getUsesGCR()) ? "GCR" : "",
                       compiler->isDLT() ? "DLT" : "",
-                      TR::CompilationInfo::isJSR292(method) ? "JSR292" : ""
+                      (!details.isMethodBuilder() && TR::CompilationInfo::isJSR292(method)) ? "JSR292" : ""
                       );
 #if defined (_MSC_VER) && _MSC_VER < 1900
          // Microsoft has a compliant version of snprintf only starting with Visual Studio 2015

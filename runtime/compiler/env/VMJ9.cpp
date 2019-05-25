@@ -5803,7 +5803,10 @@ TR_J9VMBase::getMethodSize(TR_OpaqueMethodBlock *method)
 
 int32_t TR_J9VMBase::getLineNumberForMethodAndByteCodeIndex(TR_OpaqueMethodBlock *method, int32_t bcIndex)
    {
-   return isAOT_DEPRECATED_DO_NOT_USE() ? -1 : (int32_t)getLineNumberForROMClass(_jitConfig->javaVM, (J9Method *) method, bcIndex);
+   // HACK HACK HACK
+   return -1;
+
+   //return isAOT_DEPRECATED_DO_NOT_USE() ? -1 : (int32_t)getLineNumberForROMClass(_jitConfig->javaVM, (J9Method *) method, bcIndex);
    }
 
 

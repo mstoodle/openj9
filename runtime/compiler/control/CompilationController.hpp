@@ -37,6 +37,8 @@ extern "C" {
 int32_t returnIprofilerState();
 }
 
+namespace OMR { namespace JitBuilder { class MethodBuilder; } }
+
 //--------------------------- TR_MethodEvent ----------------------------
 class TR_MethodEvent
    {
@@ -52,6 +54,7 @@ class TR_MethodEvent
           OtherRecompilationTrigger,
           JitCompilationInducedByDLT,
           HWPRecompilationTrigger,
+          MethodBuilder,
           NumEvents      // must be the last one
    };
    int32_t      _eventType;
@@ -61,6 +64,7 @@ class TR_MethodEvent
    J9VMThread * _vmThread;
    J9Class *    _classNeedingThunk; // for newInstanceImpl
    TR_Hotness   _nextOptLevel; // Used for HWP-based recompilation
+   OMR::JitBuilder::MethodBuilder * _methodBuilder;
    };
 
 

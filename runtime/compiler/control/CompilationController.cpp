@@ -263,6 +263,11 @@ TR_OptimizationPlan *TR::DefaultCompilationStrategy::processEvent(TR_MethodEvent
          plan = processHWPSample(event);
          }
          break;
+      case TR_MethodEvent::MethodBuilder:
+         hotnessLevel = TR::Options::getInitialHotnessLevel(false);
+         plan = TR_OptimizationPlan::alloc(hotnessLevel);
+         *newPlanCreated = true;
+         break;
       default:
          TR_ASSERT(0, "Bad event type %d", event->_eventType);
       }

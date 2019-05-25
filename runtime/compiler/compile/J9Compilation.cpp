@@ -1267,8 +1267,8 @@ J9::Compilation::getCachedClassPointer(CachedClassPointerId which)
    if (clazz != NULL)
       return clazz;
 
-   if (self()->compileRelocatableCode()
-       && !self()->getOption(TR_UseSymbolValidationManager))
+   if (self()->ilGenRequest().details().isMethodBuilder() ||
+       (self()->compileRelocatableCode() && !self()->getOption(TR_UseSymbolValidationManager)))
       return NULL;
 
    static const char * const names[] =
