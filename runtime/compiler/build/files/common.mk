@@ -259,7 +259,20 @@ JIT_PRODUCT_BACKEND_SOURCES+=\
     omr/compiler/ras/LogTracer.cpp \
     omr/compiler/ras/OptionsDebug.cpp \
     omr/compiler/ras/PPCOpNames.cpp \
-    omr/compiler/ras/Tree.cpp
+    omr/compiler/ras/Tree.cpp \
+    omr/build/jitbuilderclient/cpp/BytecodeBuilder.cpp \
+    omr/build/jitbuilderclient/cpp/IlBuilder.cpp \
+    omr/build/jitbuilderclient/cpp/IlType.cpp \
+    omr/build/jitbuilderclient/cpp/IlValue.cpp \
+    omr/build/jitbuilderclient/cpp/JitBuilder.cpp \
+    omr/build/jitbuilderclient/cpp/MethodBuilder.cpp \
+    omr/build/jitbuilderclient/cpp/ThunkBuilder.cpp \
+    omr/build/jitbuilderclient/cpp/TypeDictionary.cpp \
+    omr/build/jitbuilderclient/cpp/VirtualMachineOperandArray.cpp \
+    omr/build/jitbuilderclient/cpp/VirtualMachineOperandStack.cpp \
+    omr/build/jitbuilderclient/cpp/VirtualMachineRegister.cpp \
+    omr/build/jitbuilderclient/cpp/VirtualMachineRegisterInStruct.cpp \
+    omr/build/jitbuilderclient/cpp/VirtualMachineState.cpp
 
 JIT_PRODUCT_SOURCE_FILES+=\
     compiler/codegen/CodeGenGC.cpp \
