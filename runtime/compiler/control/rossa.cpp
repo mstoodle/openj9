@@ -576,6 +576,27 @@ compileMethodFromDetails(
    TR_ASSERT_FATAL(0, "compileMethodFromDetails should never be called");
    }
 
+bool
+internal_initializeJit()
+   {
+   // called by initializeJit() in JitBuilder client interface
+   }
+
+bool
+internal_initializeJitWithOptions(char * options)
+   {
+   // called by initializeJitWithOptions() in JitBuilder client interface
+   }
+
+int32_t
+internal_compileMethodBuilder(TR::MethodBuilder * methodBuilder, void ** entryPoint)
+   {
+   }
+
+void internal_shutdownJit()
+   {
+   }
+
 // -----------------------------------------------------------------------------
 // JIT shutdown
 // -----------------------------------------------------------------------------
@@ -658,6 +679,9 @@ jitExclusiveVMShutdownPending(J9VMThread * vmThread)
    #ifndef SMALL_APPTHREAD
       getCompilationInfo(vmThread->javaVM->jitConfig)->stopCompilationThreads();
    #endif
+
+   // shutdown JitBuilder client interface
+   shutdownJit();
    }
 
 // -----------------------------------------------------------------------------
@@ -1647,6 +1671,10 @@ onLoadInternal(
          return -1;
       persistentMemory->getPersistentInfo()->setInvokeExactJ2IThunkTable(ieThunkTable);
       }
+
+   // initialize JitBuilder client interface
+   initializeJit();
+
    return 0;
    }
 

@@ -259,6 +259,29 @@ static void reportHookDetail(J9VMThread *curThread, char *name, char *format, ..
       }
    }
 
+#include "JitBuilder.hpp"
+
+<<<<<<< HEAD
+class TestMethodBuilder : public OMR::JitBuilder::MethodBuilder
+   {
+   public:
+   TestMethodBuilder(OMR::JitBuilder::TypeDictionary * d)
+      : OMR::JitBuilder::MethodBuilder(d)
+      {
+      DefineLine(LINETOSTR(__LINE__));
+      DefineFile(__FILE__);
+      DefineName("ReturnThree");
+      DefineReturnType(Int64);
+      }
+
+   bool buildIL()
+      {
+      Return(
+         ConstInt64(3));
+      return true;
+      }
+   };
+
 extern "C" {
 
 extern void freeJITConfig(J9JITConfig *);
@@ -4448,6 +4471,12 @@ static void jitHookBytecodeProfiling(J9HookInterface * * hook, UDATA eventNum, v
 
 #endif /* J9VM_INTERP_PROFILING_BYTECODES  */
 
+
+extern "C" UDATA
+j9jit_compileMethodBuilder_err(struct J9JITConfig *jitConfig, J9VMThread *vmThread, void * methodBuilder, TR_CompilationErrorCode *compErrCode);
+
+
+
 extern IDATA compileClasses(J9VMThread *, const char * pattern);
 
 static void jitHookAboutToRunMain(J9HookInterface * * hook, UDATA eventNum, void * eventData, void * userData)
@@ -4482,6 +4511,39 @@ static void jitHookAboutToRunMain(J9HookInterface * * hook, UDATA eventNum, void
 
    if (TR::Options::getCmdLineOptions()->getOption(TR_jitAllAtMain))
       compileClasses(vmThread, "");
+
+   // HACK MethodBuilder compile and test to fetch javaVM field from J9VMThread
+<<<<<<< HEAD
+   OMR::JitBuilder::TypeDictionary types;
+=======
+   TestTypeDictionary types;
+>>>>>>> 025a7f170... Test JitBuilder compilation inside OpenJ9 JIT
+   TestMethodBuilder test(&types);
+   
+   TR_CompilationErrorCode compErrCode;
+   UDATA startPC = j9jit_compileMethodBuilder_err(jitConfig, vmThread, &test, &compErrCode);
+   if (compErrCode == 0) // ?
+      {
+<<<<<<< HEAD
+      typedef int64_t (ret3Fcn)();
+      ret3Fcn *return3 = reinterpret_cast<ret3Fcn *>(startPC);
+      int64_t rc = return3();
+      if (rc == 3)
+         fprintf(stderr, "Return3 MethodBuilder Passed! returned 3\n");
+      else
+         fprintf(stderr, "Return3 MethodBuilder Failed! %lld ! 3\n", rc);
+=======
+      typedef J9JavaVM *(getterFcn)(J9VMThread *);
+      getterFcn *getJ9JavaVMFromJ9VMThread = reinterpret_cast<getterFcn *>(startPC);
+
+      // finally, the Test!!
+      J9JavaVM *testJavaVM = getJ9JavaVMFromJ9VMThread(vmThread);
+      if (testJavaVM == javaVM)
+         fprintf(stderr, "JavaVM MethodBuilder generated function: %p == %p Passed!", javaVM, testJavaVM);
+      else
+         fprintf(stderr, "JavaVM MethodBuilder generated function: %p != %p Failed!", javaVM, testJavaVM);
+>>>>>>> 025a7f170... Test JitBuilder compilation inside OpenJ9 JIT
+      }
    }
 
 
